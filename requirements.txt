@@ -30,8 +30,9 @@ dashscope
 streamlit
 plotly
 psutil
-pytdx  # 通达信数据接口（已弃用，保留兼容性）
+# pytdx  # 通达信数据接口（已弃用，保留兼容性）- 暂时注释掉由于安装问题
 pymongo  # MongoDB数据库支持，用于Token使用记录存储
+pymysql>=1.0.0  # MySQL数据库支持，用于自动化分析功能
 markdown>=3.4.0  # Markdown处理，用于报告生成
-pypandoc>=1.11  # 文档格式转换，用于导出报告功能
+pypandoc==1.10  # 文档格式转换，用于导出报告功能，固定版本避免API变更问题
 python-dotenv>=1.0.0  # 环境变量管理，用于.env文件解析

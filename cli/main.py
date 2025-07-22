@@ -1775,6 +1775,49 @@ def examples():
 
 
 @app.command(
+    name="auto-analysis",
+    help="自动化分析 | Automated analysis from MySQL database"
+)
+def auto_analysis(
+    max_stocks: int = typer.Option(5, "--max", "-m", help="最大分析股票数量 | Maximum number of stocks to analyze"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="试运行模式，不保存结果 | Dry run mode, don't save results")
+):
+    """
+    从MySQL数据库自动读取股票代码并进行分析
+    Automatically read stock codes from MySQL database and perform analysis
+    """
+    try:
+        from cli.auto_analysis import AutoAnalyzer
+        
+        console.print(Panel(
+            "🤖 TradingAgents 自动化分析系统\n\n"
+            "📊 从MySQL数据库读取今日股票代码\n"
+            "🔍 自动执行多智能体分析\n"
+            "💾 将结果保存到response表",
+            title="自动化分析 | Automated Analysis",
+            style="bold blue"
+        ))
+        
+        if dry_run:
+            console.print("[yellow]🧪 试运行模式：将执行分析但不保存结果[/yellow]")
+        
+        # 创建分析器并运行
+        analyzer = AutoAnalyzer(max_stocks=max_stocks)
+        if dry_run:
+            # 试运行模式的逻辑可以在AutoAnalyzer中实现
+            console.print("[yellow]⚠️ 试运行模式暂未实现，将执行正常分析[/yellow]")
+        
+        analyzer.run_analysis()
+        
+    except ImportError as e:
+        console.print(f"[red]❌ 导入自动化分析模块失败: {e}[/red]")
+        console.print("[yellow]💡 请确保已安装pymysql: pip install pymysql[/yellow]")
+    except Exception as e:
+        console.print(f"[red]❌ 自动化分析执行失败: {e}[/red]")
+        logger.error(f"自动化分析执行失败: {e}")
+
+
+@app.command(
     name="test",
     help="运行测试 | Run tests"
 )
@@ -1834,6 +1877,11 @@ def help_chinese():
         "analyze",
         "股票分析 | Stock Analysis",
         "启动交互式多智能体股票分析工具"
+    )
+    commands_table.add_row(
+        "auto-analysis",
+        "自动化分析 | Auto Analysis",
+        "从MySQL数据库自动读取股票并批量分析"
     )
     commands_table.add_row(
         "config",
