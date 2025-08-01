@@ -113,29 +113,34 @@ class StockDataService:
         logger.error(f"❌ 所有数据源都不可用")
         return self._get_fallback_data(stock_code)
     
+    # def _get_from_mongodb(self, stock_code: str = None) -> Optional[Dict[str, Any]]:  # MongoDB已禁用
+    #     """从MongoDB获取数据"""
+    #     try:
+    #         mongodb_client = self.db_manager.get_mongodb_client()
+    #         if not mongodb_client:
+    #             return None
+    # 
+    #         db = mongodb_client[self.db_manager.mongodb_config["database"]]
+    #         collection = db['stock_basic_info']
+    # 
+    #         if stock_code:
+    #             # 获取单个股票
+    #             result = collection.find_one({'code': stock_code})
+    #             return result if result else None
+    #         else:
+    #             # 获取所有股票
+    #             cursor = collection.find({})
+    #             results = list(cursor)
+    #             return results if results else None
+    # 
+    #     except Exception as e:
+    #         logger.error(f"MongoDB查询失败: {e}")
+    #         return None
+    
     def _get_from_mongodb(self, stock_code: str = None) -> Optional[Dict[str, Any]]:
-        """从MongoDB获取数据"""
-        try:
-            mongodb_client = self.db_manager.get_mongodb_client()
-            if not mongodb_client:
-                return None
-
-            db = mongodb_client[self.db_manager.mongodb_config["database"]]
-            collection = db['stock_basic_info']
-
-            if stock_code:
-                # 获取单个股票
-                result = collection.find_one({'code': stock_code})
-                return result if result else None
-            else:
-                # 获取所有股票
-                cursor = collection.find({})
-                results = list(cursor)
-                return results if results else None
-
-        except Exception as e:
-            logger.error(f"MongoDB查询失败: {e}")
-            return None
+        """从MongoDB获取数据 (已禁用)"""
+        logger.info(f"ℹ️ MongoDB已禁用，跳过MongoDB查询")
+        return None
     
     def _get_from_tdx_api(self, stock_code: str = None) -> Optional[Dict[str, Any]]:
         """从Tushare数据接口获取数据"""
@@ -179,37 +184,42 @@ class StockDataService:
             logger.error(f"Tushare数据接口查询失败: {e}")
             return None
     
+    # def _cache_to_mongodb(self, data: Any) -> bool:  # MongoDB已禁用
+    #     """将数据缓存到MongoDB"""
+    #     if not self.db_manager or not self.db_manager.mongodb_db:
+    #         return False
+    #     
+    #     try:
+    #         collection = self.db_manager.mongodb_db['stock_basic_info']
+    #         
+    #         if isinstance(data, list):
+    #             # 批量插入
+    #             for item in data:
+    #                 collection.update_one(
+    #                     {'code': item['code']},
+    #                     {'$set': item},
+    #                     upsert=True
+    #                 )
+    #             logger.info(f"💾 已缓存{len(data)}条记录到MongoDB")
+    #         elif isinstance(data, dict):
+    #             # 单条插入
+    #             collection.update_one(
+    #                 {'code': data['code']},
+    #                 {'$set': data},
+    #                 upsert=True
+    #             )
+    #             logger.info(f"💾 已缓存股票{data['code']}到MongoDB")
+    #         
+    #         return True
+    #         
+    #     except Exception as e:
+    #         logger.error(f"缓存到MongoDB失败: {e}")
+    #         return False
+    
     def _cache_to_mongodb(self, data: Any) -> bool:
-        """将数据缓存到MongoDB"""
-        if not self.db_manager or not self.db_manager.mongodb_db:
-            return False
-        
-        try:
-            collection = self.db_manager.mongodb_db['stock_basic_info']
-            
-            if isinstance(data, list):
-                # 批量插入
-                for item in data:
-                    collection.update_one(
-                        {'code': item['code']},
-                        {'$set': item},
-                        upsert=True
-                    )
-                logger.info(f"💾 已缓存{len(data)}条记录到MongoDB")
-            elif isinstance(data, dict):
-                # 单条插入
-                collection.update_one(
-                    {'code': data['code']},
-                    {'$set': data},
-                    upsert=True
-                )
-                logger.info(f"💾 已缓存股票{data['code']}到MongoDB")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"缓存到MongoDB失败: {e}")
-            return False
+        """将数据缓存到MongoDB (已禁用)"""
+        logger.info(f"ℹ️ MongoDB已禁用，跳过MongoDB缓存")
+        return False
     
     def _get_fallback_data(self, stock_code: str = None) -> Dict[str, Any]:
         """最后的降级数据"""

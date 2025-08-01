@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS response (
     confidence DECIMAL(3,2) DEFAULT NULL COMMENT '置信度',
     risk_score DECIMAL(3,2) DEFAULT NULL COMMENT '风险评分',
     reasoning TEXT DEFAULT NULL COMMENT '分析推理',
+    news_analysis TEXT DEFAULT NULL COMMENT '新闻分析师结果',
+    sentiment_analysis TEXT DEFAULT NULL COMMENT '情绪分析师结果',
     analysis_date DATE NOT NULL COMMENT '分析日期',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     INDEX idx_stock_code (stock_code),

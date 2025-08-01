@@ -51,12 +51,12 @@ db.configurations.insertOne({
     "config_type": "cache",
     "config_name": "ttl_settings",
     "config_value": {
-        "us_stock_data": 7200,      // 美股数据2小时
+        "us_stock_data": 3600,      // 美股数据1小时
         "china_stock_data": 3600,   // A股数据1小时
-        "us_news": 21600,           // 美股新闻6小时
-        "china_news": 14400,        // A股新闻4小时
-        "us_fundamentals": 86400,   // 美股基本面24小时
-        "china_fundamentals": 43200 // A股基本面12小时
+        "us_news": 3600,            // 美股新闻1小时
+        "china_news": 3600,         // A股新闻1小时
+        "us_fundamentals": 3600,    // 美股基本面1小时
+        "china_fundamentals": 3600  // A股基本面1小时
     },
     "description": "缓存TTL配置",
     "created_at": currentTime,

@@ -17,11 +17,103 @@ sys.path.insert(0, str(project_root))
 from dotenv import load_dotenv
 load_dotenv()
 
+try:
+    import pymysql
+except ImportError:
+    print("❌ 缺少pymysql依赖，请安装: pip install pymysql")
+    sys.exit(1)
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, IntPrompt
 
 console = Console()
+
+def check_and_create_database() -> bool:
+    """检查数据库是否存在，如果不存在则创建"""
+    try:
+        # 获取数据库配置
+        config = {
+            'host': os.getenv('MYSQL_HOST', 'localhost'),
+            'port': int(os.getenv('MYSQL_PORT', 3306)),
+            'user': os.getenv('MYSQL_USER', 'root'),
+            'password': os.getenv('MYSQL_PASSWORD', ''),
+            'charset': 'utf8mb4'
+        }
+        database_name = os.getenv('MYSQL_DATABASE', 'coredata')
+        
+        # 先连接到MySQL服务器（不指定数据库）
+        connection = pymysql.connect(**config)
+        
+        try:
+            with connection.cursor() as cursor:
+                # 检查数据库是否存在
+                cursor.execute("SHOW DATABASES LIKE %s", (database_name,))
+                result = cursor.fetchone()
+                
+                if result:
+                    console.print(f"[green]✅ 数据库 '{database_name}' 已存在[/green]")
+                else:
+                    # 创建数据库
+                    console.print(f"[yellow]📦 数据库 '{database_name}' 不存在，正在创建...[/yellow]")
+                    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {database_name} DEFAULT CHARSET=utf8mb4")
+                    connection.commit()
+                    console.print(f"[green]✅ 数据库 '{database_name}' 创建成功[/green]")
+                
+                # 验证数据库连接
+                connection.select_db(database_name)
+                console.print(f"[green]✅ 成功连接到数据库 '{database_name}'[/green]")
+                
+        finally:
+            connection.close()
+            
+        return True
+        
+    except Exception as e:
+        console.print(f"[red]❌ 数据库检查或创建失败: {e}[/red]")
+        console.print("[yellow]💡 请检查MySQL服务是否运行，以及配置信息是否正确[/yellow]")
+        return False
+
+def clear_local_cache():
+    """清理本地缓存文件"""
+    import shutil
+    
+    try:
+        # 清理Python缓存文件
+        cache_patterns = ["__pycache__"]
+        total_cleaned = 0
+        
+        for pattern in cache_patterns:
+            cache_dirs = list(project_root.rglob(pattern))
+            for cache_dir in cache_dirs:
+                try:
+                    shutil.rmtree(cache_dir)
+                    total_cleaned += 1
+                except Exception:
+                    pass  # 忽略删除失败的情况
+        
+        # 清理数据缓存目录
+        cache_dirs = [
+            project_root / "cache",
+            project_root / "data" / "cache", 
+            project_root / "tradingagents" / "dataflows" / "data_cache"
+        ]
+        
+        for cache_dir in cache_dirs:
+            if cache_dir.exists():
+                try:
+                    shutil.rmtree(cache_dir)
+                    total_cleaned += 1
+                except Exception:
+                    pass  # 忽略删除失败的情况
+        
+        if total_cleaned > 0:
+            console.print(f"[green]✅ 已清理 {total_cleaned} 个缓存目录[/green]")
+        else:
+            console.print("[cyan]ℹ️ 没有发现需要清理的缓存[/cyan]")
+            
+    except Exception as e:
+        console.print(f"[yellow]⚠️ 缓存清理过程中出现问题: {e}[/yellow]")
 
 def main():
     """主函数"""
@@ -51,6 +143,16 @@ def main():
         return
     
     console.print("[green]✅ MySQL配置检查通过[/green]")
+    
+    # 检查并创建数据库
+    console.print("\n[yellow]🔍 检查数据库是否存在...[/yellow]")
+    if not check_and_create_database():
+        console.print("[red]❌ 数据库检查或创建失败[/red]")
+        return
+    
+    # 清理本地缓存
+    console.print("\n[yellow]🧹 清理本地缓存...[/yellow]")
+    clear_local_cache()
     
     # 询问分析参数
     try:

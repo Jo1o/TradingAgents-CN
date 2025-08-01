@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MongoDB + Redis 数据库缓存管理器
+Redis 数据库缓存管理器 (MongoDB已禁用)
 提供高性能的股票数据缓存和持久化存储
 """
 
@@ -16,14 +16,16 @@ import pandas as pd
 from tradingagents.utils.logging_manager import get_logger
 logger = get_logger('agents')
 
-# MongoDB
-try:
-    from pymongo import MongoClient
-    from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
-    MONGODB_AVAILABLE = True
-except ImportError:
-    MONGODB_AVAILABLE = False
-    logger.warning(f"⚠️ pymongo 未安装，MongoDB功能不可用")
+# MongoDB (已禁用)
+# try:
+#     from pymongo import MongoClient
+#     from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+#     MONGODB_AVAILABLE = True
+# except ImportError:
+#     MONGODB_AVAILABLE = False
+#     logger.warning(f"⚠️ pymongo 未安装，MongoDB功能不可用")
+MONGODB_AVAILABLE = False  # 强制禁用MongoDB
+logger.info(f"ℹ️ MongoDB已被禁用，当前使用MySQL数据库")
 
 # Redis
 try:
@@ -36,7 +38,7 @@ except ImportError:
 
 
 class DatabaseCacheManager:
-    """MongoDB + Redis 数据库缓存管理器"""
+    """Redis 数据库缓存管理器 (MongoDB已禁用)"""
     
     def __init__(self,
                  mongodb_url: Optional[str] = None,
@@ -58,47 +60,54 @@ class DatabaseCacheManager:
         mongodb_password = os.getenv("MONGODB_PASSWORD", "tradingagents123")
         redis_password = os.getenv("REDIS_PASSWORD", "tradingagents123")
 
-        self.mongodb_url = mongodb_url or os.getenv("MONGODB_URL", f"mongodb://admin:{mongodb_password}@localhost:{mongodb_port}")
+        # self.mongodb_url = mongodb_url or os.getenv("MONGODB_URL", f"mongodb://admin:{mongodb_password}@localhost:{mongodb_port}")  # MongoDB已禁用
         self.redis_url = redis_url or os.getenv("REDIS_URL", f"redis://:{redis_password}@localhost:{redis_port}")
-        self.mongodb_db_name = mongodb_db
+        # self.mongodb_db_name = mongodb_db  # MongoDB已禁用
         self.redis_db = redis_db
         
         # 初始化连接
-        self.mongodb_client = None
-        self.mongodb_db = None
+        # self.mongodb_client = None  # MongoDB已禁用
+        # self.mongodb_db = None  # MongoDB已禁用
+        self.mongodb_client = None  # 保留变量但不使用
+        self.mongodb_db = None  # 保留变量但不使用
         self.redis_client = None
         
-        self._init_mongodb()
+        # self._init_mongodb()  # MongoDB已禁用
         self._init_redis()
         
         logger.info(f"🗄️ 数据库缓存管理器初始化完成")
-        logger.error(f"   MongoDB: {'✅ 已连接' if self.mongodb_client else '❌ 未连接'}")
+        # logger.error(f"   MongoDB: {'✅ 已连接' if self.mongodb_client else '❌ 未连接'}")  # MongoDB已禁用
+        logger.error(f"   MongoDB: ❌ 已禁用 (使用MySQL)")
         logger.error(f"   Redis: {'✅ 已连接' if self.redis_client else '❌ 未连接'}")
     
+    # def _init_mongodb(self):  # MongoDB已禁用
+    #     """初始化MongoDB连接"""
+    #     if not MONGODB_AVAILABLE:
+    #         return
+    #     
+    #     try:
+    #         self.mongodb_client = MongoClient(
+    #             self.mongodb_url,
+    #             serverSelectionTimeoutMS=5000,  # 5秒超时
+    #             connectTimeoutMS=5000
+    #         )
+    #         # 测试连接
+    #         self.mongodb_client.admin.command('ping')
+    #         self.mongodb_db = self.mongodb_client[self.mongodb_db_name]
+    #         
+    #         # 创建索引
+    #         self._create_mongodb_indexes()
+    #         
+    #         logger.info(f"✅ MongoDB连接成功: {self.mongodb_url}")
+    #         
+    #     except Exception as e:
+    #         logger.error(f"❌ MongoDB连接失败: {e}")
+    #         self.mongodb_client = None
+    #         self.mongodb_db = None
+    
     def _init_mongodb(self):
-        """初始化MongoDB连接"""
-        if not MONGODB_AVAILABLE:
-            return
-        
-        try:
-            self.mongodb_client = MongoClient(
-                self.mongodb_url,
-                serverSelectionTimeoutMS=5000,  # 5秒超时
-                connectTimeoutMS=5000
-            )
-            # 测试连接
-            self.mongodb_client.admin.command('ping')
-            self.mongodb_db = self.mongodb_client[self.mongodb_db_name]
-            
-            # 创建索引
-            self._create_mongodb_indexes()
-            
-            logger.info(f"✅ MongoDB连接成功: {self.mongodb_url}")
-            
-        except Exception as e:
-            logger.error(f"❌ MongoDB连接失败: {e}")
-            self.mongodb_client = None
-            self.mongodb_db = None
+        """初始化MongoDB连接 (已禁用)"""
+        logger.info(f"ℹ️ MongoDB已被禁用，跳过初始化")
     
     def _init_redis(self):
         """初始化Redis连接"""
@@ -122,44 +131,48 @@ class DatabaseCacheManager:
             logger.error(f"❌ Redis连接失败: {e}")
             self.redis_client = None
     
+    # def _create_mongodb_indexes(self):  # MongoDB已禁用
+    #     """创建MongoDB索引"""
+    #     if self.mongodb_db is None:
+    #         return
+    #     
+    #     try:
+    #         # 股票数据集合索引
+    #         stock_collection = self.mongodb_db.stock_data
+    #         stock_collection.create_index([
+    #             ("symbol", 1),
+    #             ("data_source", 1),
+    #             ("start_date", 1),
+    #             ("end_date", 1)
+    #         ])
+    #         stock_collection.create_index([("created_at", 1)])
+    #         
+    #         # 新闻数据集合索引
+    #         news_collection = self.mongodb_db.news_data
+    #         news_collection.create_index([
+    #             ("symbol", 1),
+    #             ("data_source", 1),
+    #             ("date_range", 1)
+    #         ])
+    #         news_collection.create_index([("created_at", 1)])
+    #         
+    #         # 基本面数据集合索引
+    #         fundamentals_collection = self.mongodb_db.fundamentals_data
+    #         fundamentals_collection.create_index([
+    #             ("symbol", 1),
+    #             ("data_source", 1),
+    #             ("analysis_date", 1)
+    #         ])
+    #         fundamentals_collection.create_index([("created_at", 1)])
+    #         
+    #         logger.info(f"✅ MongoDB索引创建完成")
+    #         
+    #     except Exception as e:
+    #         logger.error(f"⚠️ MongoDB索引创建失败: {e}")
+    
     def _create_mongodb_indexes(self):
-        """创建MongoDB索引"""
-        if self.mongodb_db is None:
-            return
-        
-        try:
-            # 股票数据集合索引
-            stock_collection = self.mongodb_db.stock_data
-            stock_collection.create_index([
-                ("symbol", 1),
-                ("data_source", 1),
-                ("start_date", 1),
-                ("end_date", 1)
-            ])
-            stock_collection.create_index([("created_at", 1)])
-            
-            # 新闻数据集合索引
-            news_collection = self.mongodb_db.news_data
-            news_collection.create_index([
-                ("symbol", 1),
-                ("data_source", 1),
-                ("date_range", 1)
-            ])
-            news_collection.create_index([("created_at", 1)])
-            
-            # 基本面数据集合索引
-            fundamentals_collection = self.mongodb_db.fundamentals_data
-            fundamentals_collection.create_index([
-                ("symbol", 1),
-                ("data_source", 1),
-                ("analysis_date", 1)
-            ])
-            fundamentals_collection.create_index([("created_at", 1)])
-            
-            logger.info(f"✅ MongoDB索引创建完成")
-            
-        except Exception as e:
-            logger.error(f"⚠️ MongoDB索引创建失败: {e}")
+        """创建MongoDB索引 (已禁用)"""
+        logger.info(f"ℹ️ MongoDB已被禁用，跳过索引创建")
     
     def _generate_cache_key(self, data_type: str, symbol: str, **kwargs) -> str:
         """生成缓存键"""
@@ -223,14 +236,15 @@ class DatabaseCacheManager:
             doc["data"] = str(data)
             doc["data_format"] = "text"
         
-        # 保存到MongoDB（持久化）
-        if self.mongodb_db is not None:
-            try:
-                collection = self.mongodb_db.stock_data
-                collection.replace_one({"_id": cache_key}, doc, upsert=True)
-                logger.info(f"💾 股票数据已保存到MongoDB: {symbol} -> {cache_key}")
-            except Exception as e:
-                logger.error(f"⚠️ MongoDB保存失败: {e}")
+        # 保存到MongoDB（持久化）- 已禁用
+        # if self.mongodb_db is not None:
+        #     try:
+        #         collection = self.mongodb_db.stock_data
+        #         collection.replace_one({"_id": cache_key}, doc, upsert=True)
+        #         logger.info(f"💾 股票数据已保存到MongoDB: {symbol} -> {cache_key}")
+        #     except Exception as e:
+        #         logger.error(f"⚠️ MongoDB保存失败: {e}")
+        logger.info(f"ℹ️ MongoDB已禁用，股票数据仅保存到Redis: {symbol} -> {cache_key}")
         
         # 保存到Redis（快速缓存，6小时过期）
         if self.redis_client:
@@ -271,41 +285,42 @@ class DatabaseCacheManager:
             except Exception as e:
                 logger.error(f"⚠️ Redis加载失败: {e}")
         
-        # 如果Redis没有，从MongoDB加载
-        if self.mongodb_db is not None:
-            try:
-                collection = self.mongodb_db.stock_data
-                doc = collection.find_one({"_id": cache_key})
-                
-                if doc:
-                    logger.info(f"💾 从MongoDB加载数据: {cache_key}")
-                    
-                    # 同时更新到Redis缓存
-                    if self.redis_client:
-                        try:
-                            redis_data = {
-                                "data": doc["data"],
-                                "data_format": doc["data_format"],
-                                "symbol": doc["symbol"],
-                                "data_source": doc["data_source"],
-                                "created_at": doc["created_at"].isoformat()
-                            }
-                            self.redis_client.setex(
-                                cache_key,
-                                6 * 3600,
-                                json.dumps(redis_data, ensure_ascii=False)
-                            )
-                            logger.info(f"⚡ 数据已同步到Redis缓存")
-                        except Exception as e:
-                            logger.error(f"⚠️ Redis同步失败: {e}")
-                    
-                    if doc["data_format"] == "dataframe_json":
-                        return pd.read_json(doc["data"], orient='records')
-                    else:
-                        return doc["data"]
-                        
-            except Exception as e:
-                logger.error(f"⚠️ MongoDB加载失败: {e}")
+        # 如果Redis没有，从MongoDB加载 - 已禁用
+        # if self.mongodb_db is not None:
+        #     try:
+        #         collection = self.mongodb_db.stock_data
+        #         doc = collection.find_one({"_id": cache_key})
+        #         
+        #         if doc:
+        #             logger.info(f"💾 从MongoDB加载数据: {cache_key}")
+        #             
+        #             # 同时更新到Redis缓存
+        #             if self.redis_client:
+        #                 try:
+        #                     redis_data = {
+        #                         "data": doc["data"],
+        #                         "data_format": doc["data_format"],
+        #                         "symbol": doc["symbol"],
+        #                         "data_source": doc["data_source"],
+        #                         "created_at": doc["created_at"].isoformat()
+        #                     }
+        #                     self.redis_client.setex(
+        #                         cache_key,
+        #                         6 * 3600,
+        #                         json.dumps(redis_data, ensure_ascii=False)
+        #                     )
+        #                     logger.info(f"⚡ 数据已同步到Redis缓存")
+        #                 except Exception as e:
+        #                     logger.error(f"⚠️ Redis同步失败: {e}")
+        #             
+        #             if doc["data_format"] == "dataframe_json":
+        #                 return pd.read_json(doc["data"], orient='records')
+        #             else:
+        #                 return doc["data"]
+        #                 
+        #     except Exception as e:
+        #         logger.error(f"⚠️ MongoDB加载失败: {e}")
+        logger.info(f"ℹ️ MongoDB已禁用，仅从Redis加载数据: {cache_key}")
         
         return None
     
@@ -325,33 +340,34 @@ class DatabaseCacheManager:
             logger.info(f"⚡ Redis中找到精确匹配: {symbol} -> {exact_key}")
             return exact_key
         
-        # 检查MongoDB中的匹配项
-        if self.mongodb_db is not None:
-            try:
-                collection = self.mongodb_db.stock_data
-                cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
-                
-                query = {
-                    "symbol": symbol,
-                    "created_at": {"$gte": cutoff_time}
-                }
-                
-                if data_source:
-                    query["data_source"] = data_source
-                if start_date:
-                    query["start_date"] = start_date
-                if end_date:
-                    query["end_date"] = end_date
-                
-                doc = collection.find_one(query, sort=[("created_at", -1)])
-                
-                if doc:
-                    cache_key = doc["_id"]
-                    logger.info(f"💾 MongoDB中找到匹配: {symbol} -> {cache_key}")
-                    return cache_key
-                    
-            except Exception as e:
-                logger.error(f"⚠️ MongoDB查询失败: {e}")
+        # 检查MongoDB中的匹配项 - 已禁用
+        # if self.mongodb_db is not None:
+        #     try:
+        #         collection = self.mongodb_db.stock_data
+        #         cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
+        #         
+        #         query = {
+        #             "symbol": symbol,
+        #             "created_at": {"$gte": cutoff_time}
+        #         }
+        #         
+        #         if data_source:
+        #             query["data_source"] = data_source
+        #         if start_date:
+        #             query["start_date"] = start_date
+        #         if end_date:
+        #             query["end_date"] = end_date
+        #         
+        #         doc = collection.find_one(query, sort=[("created_at", -1)])
+        #         
+        #         if doc:
+        #             cache_key = doc["_id"]
+        #             logger.info(f"💾 MongoDB中找到匹配: {symbol} -> {cache_key}")
+        #             return cache_key
+        #             
+        #     except Exception as e:
+        #         logger.error(f"⚠️ MongoDB查询失败: {e}")
+        logger.info(f"ℹ️ MongoDB已禁用，仅在Redis中查找缓存: {symbol}")
         
         logger.error(f"❌ 未找到有效缓存: {symbol}")
         return None
@@ -378,14 +394,15 @@ class DatabaseCacheManager:
             "updated_at": datetime.utcnow()
         }
 
-        # 保存到MongoDB
-        if self.mongodb_db is not None:
-            try:
-                collection = self.mongodb_db.news_data
-                collection.replace_one({"_id": cache_key}, doc, upsert=True)
-                logger.info(f"📰 新闻数据已保存到MongoDB: {symbol} -> {cache_key}")
-            except Exception as e:
-                logger.error(f"⚠️ MongoDB保存失败: {e}")
+        # 保存到MongoDB - 已禁用
+        # if self.mongodb_db is not None:
+        #     try:
+        #         collection = self.mongodb_db.news_data
+        #         collection.replace_one({"_id": cache_key}, doc, upsert=True)
+        #         logger.info(f"📰 新闻数据已保存到MongoDB: {symbol} -> {cache_key}")
+        #     except Exception as e:
+        #         logger.error(f"⚠️ MongoDB保存失败: {e}")
+        logger.info(f"ℹ️ MongoDB已禁用，新闻数据仅保存到Redis: {symbol} -> {cache_key}")
 
         # 保存到Redis（24小时过期）
         if self.redis_client:
@@ -429,14 +446,15 @@ class DatabaseCacheManager:
             "updated_at": datetime.utcnow()
         }
 
-        # 保存到MongoDB
-        if self.mongodb_db is not None:
-            try:
-                collection = self.mongodb_db.fundamentals_data
-                collection.replace_one({"_id": cache_key}, doc, upsert=True)
-                logger.info(f"💼 基本面数据已保存到MongoDB: {symbol} -> {cache_key}")
-            except Exception as e:
-                logger.error(f"⚠️ MongoDB保存失败: {e}")
+        # 保存到MongoDB - 已禁用
+        # if self.mongodb_db is not None:
+        #     try:
+        #         collection = self.mongodb_db.fundamentals_data
+        #         collection.replace_one({"_id": cache_key}, doc, upsert=True)
+        #         logger.info(f"💼 基本面数据已保存到MongoDB: {symbol} -> {cache_key}")
+        #     except Exception as e:
+        #         logger.error(f"⚠️ MongoDB保存失败: {e}")
+        logger.info(f"ℹ️ MongoDB已禁用，基本面数据仅保存到Redis: {symbol} -> {cache_key}")
 
         # 保存到Redis（24小时过期）
         if self.redis_client:
@@ -462,23 +480,24 @@ class DatabaseCacheManager:
     def get_cache_stats(self) -> Dict[str, Any]:
         """获取缓存统计信息"""
         stats = {
-            "mongodb": {"available": self.mongodb_db is not None, "collections": {}},
+            "mongodb": {"available": False, "collections": {}},  # MongoDB已禁用
             "redis": {"available": self.redis_client is not None, "keys": 0, "memory_usage": "N/A"}
         }
 
-        # MongoDB统计
-        if self.mongodb_db is not None:
-            try:
-                for collection_name in ["stock_data", "news_data", "fundamentals_data"]:
-                    collection = self.mongodb_db[collection_name]
-                    count = collection.count_documents({})
-                    size = self.mongodb_db.command("collStats", collection_name).get("size", 0)
-                    stats["mongodb"]["collections"][collection_name] = {
-                        "count": count,
-                        "size_mb": round(size / (1024 * 1024), 2)
-                    }
-            except Exception as e:
-                logger.error(f"⚠️ MongoDB统计获取失败: {e}")
+        # MongoDB统计 - 已禁用
+        # if self.mongodb_db is not None:
+        #     try:
+        #         for collection_name in ["stock_data", "news_data", "fundamentals_data"]:
+        #             collection = self.mongodb_db[collection_name]
+        #             count = collection.count_documents({})
+        #             size = self.mongodb_db.command("collStats", collection_name).get("size", 0)
+        #             stats["mongodb"]["collections"][collection_name] = {
+        #                 "count": count,
+        #                 "size_mb": round(size / (1024 * 1024), 2)
+        #             }
+        #     except Exception as e:
+        #         logger.error(f"⚠️ MongoDB统计获取失败: {e}")
+        logger.info(f"ℹ️ MongoDB已禁用，跳过MongoDB统计")
 
         # Redis统计
         if self.redis_client:
@@ -496,16 +515,17 @@ class DatabaseCacheManager:
         cutoff_time = datetime.utcnow() - timedelta(days=max_age_days)
         cleared_count = 0
 
-        # 清理MongoDB
-        if self.mongodb_db is not None:
-            try:
-                for collection_name in ["stock_data", "news_data", "fundamentals_data"]:
-                    collection = self.mongodb_db[collection_name]
-                    result = collection.delete_many({"created_at": {"$lt": cutoff_time}})
-                    cleared_count += result.deleted_count
-                    logger.info(f"🧹 MongoDB {collection_name} 清理了 {result.deleted_count} 条记录")
-            except Exception as e:
-                logger.error(f"⚠️ MongoDB清理失败: {e}")
+        # 清理MongoDB - 已禁用
+        # if self.mongodb_db is not None:
+        #     try:
+        #         for collection_name in ["stock_data", "news_data", "fundamentals_data"]:
+        #             collection = self.mongodb_db[collection_name]
+        #             result = collection.delete_many({"created_at": {"$lt": cutoff_time}})
+        #             cleared_count += result.deleted_count
+        #             logger.info(f"🧹 MongoDB {collection_name} 清理了 {result.deleted_count} 条记录")
+        #     except Exception as e:
+        #         logger.error(f"⚠️ MongoDB清理失败: {e}")
+        logger.info(f"ℹ️ MongoDB已禁用，跳过MongoDB清理")
 
         # Redis会自动过期，不需要手动清理
         logger.info(f"🧹 总共清理了 {cleared_count} 条过期记录")
@@ -513,9 +533,10 @@ class DatabaseCacheManager:
 
     def close(self):
         """关闭数据库连接"""
-        if self.mongodb_client:
-            self.mongodb_client.close()
-            logger.info(f"🔒 MongoDB连接已关闭")
+        # if self.mongodb_client:  # MongoDB已禁用
+        #     self.mongodb_client.close()
+        #     logger.info(f"🔒 MongoDB连接已关闭")
+        logger.info(f"ℹ️ MongoDB已禁用，跳过MongoDB连接关闭")
 
         if self.redis_client:
             self.redis_client.close()

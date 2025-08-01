@@ -1016,8 +1016,16 @@ class Toolkit:
                 try:
                     # 获取公司中文名称用于搜索
                     if is_china:
-                        # A股使用股票代码搜索
-                        search_query = f"{ticker} 股票"
+                        # A股：先获取公司名称，然后使用公司名称+股票代码进行搜索
+                        try:
+                            from tradingagents.dataflows.data_source_manager import get_china_stock_info_unified
+                            stock_info = get_china_stock_info_unified(ticker)
+                            company_name = stock_info.get('name', ticker)
+                            search_query = f"{company_name} {ticker} 股票"
+                            logger.info(f"📰 [统一新闻工具] A股搜索查询: {search_query}")
+                        except Exception as e:
+                            logger.warning(f"📰 [统一新闻工具] 获取A股公司名称失败，使用股票代码: {e}")
+                            search_query = f"{ticker} 股票"
                     else:
                         # 港股使用代码搜索
                         search_query = f"{ticker} 港股"
@@ -1094,45 +1102,69 @@ class Toolkit:
             result_data = []
 
             if is_china or is_hk:
-                # 中国A股和港股：使用社交媒体情绪分析
+                # 中国A股和港股：使用集成的中文情绪分析
                 logger.info(f"🇨🇳🇭🇰 [统一情绪工具] 处理中文市场情绪...")
 
                 try:
-                    # 可以集成微博、雪球、东方财富等中文社交媒体情绪
-                    # 目前使用基础的情绪分析
-                    sentiment_summary = f"""
-## 中文市场情绪分析
-
-**股票**: {ticker} ({market_info['market_name']})
-**分析日期**: {curr_date}
-
-### 市场情绪概况
-- 由于中文社交媒体情绪数据源暂未完全集成，当前提供基础分析
-- 建议关注雪球、东方财富、同花顺等平台的讨论热度
-- 港股市场还需关注香港本地财经媒体情绪
-
-### 情绪指标
-- 整体情绪: 中性
-- 讨论热度: 待分析
-- 投资者信心: 待评估
-
-*注：完整的中文社交媒体情绪分析功能正在开发中*
-"""
-                    result_data.append(sentiment_summary)
+                    # 使用集成了新闻分析师数据的中文情绪分析
+                    from tradingagents.dataflows.chinese_finance_utils import get_chinese_social_sentiment
+                    
+                    sentiment_data = get_chinese_social_sentiment(ticker, curr_date)
+                    result_data.append(f"## 中文市场情绪分析\n{sentiment_data}")
+                    
+                    # 额外获取新闻情绪分析
+                    try:
+                        news_sentiment = Toolkit.get_stock_news_unified(ticker, curr_date)
+                        # 从新闻中提取情绪信息
+                        sentiment_analysis = "\n### 基于新闻的情绪分析\n"
+                        if "利好" in news_sentiment or "上涨" in news_sentiment or "看好" in news_sentiment:
+                            sentiment_analysis += "- 新闻情绪倾向: 积极\n"
+                        elif "利空" in news_sentiment or "下跌" in news_sentiment or "风险" in news_sentiment:
+                            sentiment_analysis += "- 新闻情绪倾向: 消极\n"
+                        else:
+                            sentiment_analysis += "- 新闻情绪倾向: 中性\n"
+                        
+                        sentiment_analysis += f"- 新闻数据长度: {len(news_sentiment)}字符\n"
+                        result_data.append(sentiment_analysis)
+                    except Exception as news_e:
+                        logger.warning(f"新闻情绪分析失败: {news_e}")
+                        
                 except Exception as e:
                     result_data.append(f"## 中文市场情绪\n获取失败: {e}")
 
             else:
-                # 美股：使用Reddit情绪分析
+                # 美股：使用Reddit和新闻情绪分析
                 logger.info(f"🇺🇸 [统一情绪工具] 处理美股情绪...")
 
                 try:
-                    from tradingagents.dataflows.interface import get_reddit_sentiment
-
-                    sentiment_data = get_reddit_sentiment(ticker, curr_date)
-                    result_data.append(f"## 美股Reddit情绪\n{sentiment_data}")
+                    # 尝试获取Reddit情绪（如果可用）
+                    try:
+                        from tradingagents.dataflows.interface import get_reddit_global_news, get_reddit_company_news
+                        
+                        # 使用现有的Reddit新闻函数
+                        reddit_data = get_reddit_company_news(ticker, curr_date, curr_date)
+                        result_data.append(f"## 美股Reddit情绪\n{reddit_data}")
+                    except Exception as reddit_e:
+                        logger.warning(f"Reddit数据获取失败: {reddit_e}")
+                        
+                        # 回退到新闻情绪分析
+                        try:
+                            news_sentiment = Toolkit.get_stock_news_unified(ticker, curr_date)
+                            sentiment_analysis = "\n### 基于新闻的美股情绪分析\n"
+                            if "positive" in news_sentiment.lower() or "bullish" in news_sentiment.lower() or "buy" in news_sentiment.lower():
+                                sentiment_analysis += "- 新闻情绪倾向: 积极\n"
+                            elif "negative" in news_sentiment.lower() or "bearish" in news_sentiment.lower() or "sell" in news_sentiment.lower():
+                                sentiment_analysis += "- 新闻情绪倾向: 消极\n"
+                            else:
+                                sentiment_analysis += "- 新闻情绪倾向: 中性\n"
+                            
+                            sentiment_analysis += f"- 新闻数据长度: {len(news_sentiment)}字符\n"
+                            result_data.append(f"## 美股情绪分析\n{sentiment_analysis}")
+                        except Exception as news_e:
+                            result_data.append(f"## 美股情绪分析\n获取失败: Reddit和新闻数据源均不可用")
+                            
                 except Exception as e:
-                    result_data.append(f"## 美股Reddit情绪\n获取失败: {e}")
+                    result_data.append(f"## 美股情绪分析\n获取失败: {e}")
 
             # 组合所有数据
             combined_result = f"""# {ticker} 情绪分析

@@ -101,14 +101,14 @@ def render_analysis_form():
             
             social_analyst = st.checkbox(
                 "💭 社交媒体分析师",
-                value=False,
+                value=True,
                 help="分析社交媒体情绪、投资者情绪指标"
             )
         
         with col2:
             news_analyst = st.checkbox(
                 "📰 新闻分析师",
-                value=False,
+                value=True,
                 help="分析相关新闻事件、市场动态影响"
             )
             

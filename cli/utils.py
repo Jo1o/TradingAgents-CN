@@ -71,10 +71,13 @@ def get_analysis_date() -> str:
 
 def select_analysts() -> List[AnalystType]:
     """Select analysts using an interactive checkbox."""
+    # 默认选择新闻分析师和社交媒体分析师
+    default_selected = [AnalystType.NEWS, AnalystType.SOCIAL]
+    
     choices = questionary.checkbox(
         "选择您的分析师团队 | Select Your [Analysts Team]:",
         choices=[
-            questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
+            questionary.Choice(display, value=value, checked=value in default_selected) for display, value in ANALYST_ORDER
         ],
         instruction="\n- 按空格键选择/取消选择分析师 | Press Space to select/unselect analysts\n- 按 'a' 键全选/取消全选 | Press 'a' to select/unselect all\n- 按回车键完成选择 | Press Enter when done",
         validate=lambda x: len(x) > 0 or "您必须至少选择一个分析师 | You must select at least one analyst.",

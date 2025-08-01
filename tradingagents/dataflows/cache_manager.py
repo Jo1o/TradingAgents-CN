@@ -54,32 +54,32 @@ class StockDataCache:
         # 缓存配置 - 针对不同市场设置不同的TTL
         self.cache_config = {
             'us_stock_data': {
-                'ttl_hours': 2,  # 美股数据缓存2小时（考虑到API限制）
+                'ttl_hours': 1,  # 美股数据缓存1小时
                 'max_files': 1000,
                 'description': '美股历史数据'
             },
             'china_stock_data': {
-                'ttl_hours': 1,  # A股数据缓存1小时（实时性要求高）
+                'ttl_hours': 1,  # A股数据缓存1小时
                 'max_files': 1000,
                 'description': 'A股历史数据'
             },
             'us_news': {
-                'ttl_hours': 6,  # 美股新闻缓存6小时
+                'ttl_hours': 1,  # 美股新闻缓存1小时
                 'max_files': 500,
                 'description': '美股新闻数据'
             },
             'china_news': {
-                'ttl_hours': 4,  # A股新闻缓存4小时
+                'ttl_hours': 1,  # A股新闻缓存1小时
                 'max_files': 500,
                 'description': 'A股新闻数据'
             },
             'us_fundamentals': {
-                'ttl_hours': 24,  # 美股基本面数据缓存24小时
+                'ttl_hours': 1,  # 美股基本面数据缓存1小时
                 'max_files': 200,
                 'description': '美股基本面数据'
             },
             'china_fundamentals': {
-                'ttl_hours': 12,  # A股基本面数据缓存12小时
+                'ttl_hours': 1,  # A股基本面数据缓存1小时
                 'max_files': 200,
                 'description': 'A股基本面数据'
             }

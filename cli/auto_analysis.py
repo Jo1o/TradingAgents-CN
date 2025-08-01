@@ -112,6 +112,8 @@ class MySQLManager:
                     confidence DECIMAL(3,2) DEFAULT NULL COMMENT '置信度',
                     risk_score DECIMAL(3,2) DEFAULT NULL COMMENT '风险评分',
                     reasoning TEXT DEFAULT NULL COMMENT '分析推理',
+                    news_analysis TEXT DEFAULT NULL COMMENT '新闻分析师结果',
+                    sentiment_analysis TEXT DEFAULT NULL COMMENT '情绪分析师结果',
                     analysis_date DATE NOT NULL COMMENT '分析日期',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                     INDEX idx_stock_code (stock_code),
@@ -138,8 +140,8 @@ class MySQLManager:
                 sql = """
                 INSERT INTO response (
                     stock_code, action, target_price, confidence, 
-                    risk_score, reasoning, analysis_date
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    risk_score, reasoning, news_analysis, sentiment_analysis, analysis_date
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 
                 values = (
@@ -149,6 +151,8 @@ class MySQLManager:
                     result.get('confidence'),
                     result.get('risk_score'),
                     result.get('reasoning'),
+                    result.get('news_analysis'),
+                    result.get('sentiment_analysis'),
                     datetime.date.today()
                 )
                 
@@ -185,8 +189,22 @@ class AutoAnalyzer:
         
         # 初始化交易图
         try:
-            self.trading_graph = TradingAgentsGraph(config=DEFAULT_CONFIG)
-            logger.info("✅ TradingAgentsGraph 初始化成功")
+            # 确保包含所有分析师，特别是新闻分析师和情绪分析师
+            selected_analysts = ["market", "social", "news", "fundamentals"]
+            
+            # 创建配置副本并禁用memory功能
+            config = DEFAULT_CONFIG.copy()
+            config["memory_enabled"] = False
+            
+            self.trading_graph = TradingAgentsGraph(
+                selected_analysts=selected_analysts,
+                config=config,
+                debug=False
+            )
+            logger.info(f"✅ TradingAgentsGraph 初始化成功，包含分析师: {selected_analysts}")
+            logger.info(f"🚫 Memory功能已禁用，不会从历史记忆中获取信息")
+            console.print(f"[green]✅ 已启用分析师: {', '.join(selected_analysts)}[/green]")
+            console.print(f"[yellow]🚫 Memory功能已禁用，每次分析都是独立的[/yellow]")
             return True
         except Exception as e:
             logger.error(f"❌ TradingAgentsGraph 初始化失败: {e}")
@@ -203,13 +221,39 @@ class AutoAnalyzer:
             
             # 提取关键信息
             if result and isinstance(result, dict):
+                # 从state中提取新闻分析和情绪分析结果
+                news_analysis = '无新闻分析'
+                sentiment_analysis = '无情绪分析'
+                
+                if state and isinstance(state, dict):
+                    # 记录state中的关键字段用于调试
+                    logger.debug(f"📊 State字段: {list(state.keys())}")
+                    
+                    # 提取新闻分析结果
+                    news_report = state.get('news_report', '')
+                    logger.debug(f"📰 原始新闻报告: {news_report[:200] if news_report else 'None'}...")
+                    if news_report and isinstance(news_report, str) and news_report.strip():
+                        news_analysis = news_report.strip()
+                        logger.info(f"✅ 成功提取新闻分析: {len(news_analysis)} 字符")
+                    
+                    # 提取情绪分析结果
+                    sentiment_report = state.get('sentiment_report', '')
+                    logger.debug(f"😊 原始情绪报告: {sentiment_report[:200] if sentiment_report else 'None'}...")
+                    if sentiment_report and isinstance(sentiment_report, str) and sentiment_report.strip():
+                        sentiment_analysis = sentiment_report.strip()
+                        logger.info(f"✅ 成功提取情绪分析: {len(sentiment_analysis)} 字符")
+                else:
+                    logger.warning(f"⚠️ State为空或格式异常: {type(state)}")
+                
                 # 解析决策信息
                 analysis_result = {
                     'action': result.get('action', '未知'),
                     'target_price': result.get('target_price'),
                     'confidence': result.get('confidence'),
                     'risk_score': result.get('risk_score'),
-                    'reasoning': result.get('reasoning', '无详细说明')
+                    'reasoning': result.get('reasoning', '无详细说明'),
+                    'news_analysis': news_analysis,
+                    'sentiment_analysis': sentiment_analysis
                 }
                 
                 console.print(f"✅ 股票 {stock_code} 分析完成")
@@ -217,6 +261,17 @@ class AutoAnalyzer:
                 console.print(f"   目标价: {analysis_result['target_price']}")
                 console.print(f"   置信度: {analysis_result['confidence']}")
                 console.print(f"   风险评分: {analysis_result['risk_score']}")
+                
+                # 显示新闻分析和情绪分析结果（调试信息）
+                if analysis_result['news_analysis'] != '无新闻分析':
+                    console.print(f"   [cyan]📰 新闻分析: {analysis_result['news_analysis'][:100]}...[/cyan]")
+                else:
+                    console.print(f"   [yellow]⚠️ 新闻分析: 未获取到新闻分析结果[/yellow]")
+                    
+                if analysis_result['sentiment_analysis'] != '无情绪分析':
+                    console.print(f"   [cyan]😊 情绪分析: {analysis_result['sentiment_analysis'][:100]}...[/cyan]")
+                else:
+                    console.print(f"   [yellow]⚠️ 情绪分析: 未获取到情绪分析结果[/yellow]")
                 
                 return analysis_result
             else:

@@ -149,25 +149,94 @@ class ChineseFinanceDataAggregator:
             return {'error': str(e), 'sentiment_score': 0, 'confidence': 0}
     
     def _search_finance_news(self, search_term: str, days: int) -> List[Dict]:
-        """搜索财经新闻 (示例实现)"""
-        # 这里可以集成多个新闻源的API或RSS
-        # 例如：财联社、新浪财经、东方财富等
-        
-        # 模拟返回数据结构
-        return [
-            {
-                'title': f'{search_term}相关财经新闻标题',
-                'content': '新闻内容摘要...',
-                'source': '财联社',
-                'publish_time': datetime.now().isoformat(),
-                'url': 'https://example.com/news/1'
-            }
-        ]
+        """搜索财经新闻 - 集成新闻分析师数据"""
+        try:
+            # 使用新闻分析师的统一新闻工具获取真实新闻数据
+            from tradingagents.agents.utils.agent_utils import Toolkit
+            from datetime import datetime, timedelta
+            
+            # 计算查询日期
+            end_date = datetime.now()
+            curr_date_str = end_date.strftime('%Y-%m-%d')
+            
+            # 创建工具包实例
+            toolkit = Toolkit()
+            
+            # 尝试获取Google新闻（适用于中文搜索）
+            try:
+                news_data = toolkit.get_google_news(search_term, curr_date_str)
+                # 解析新闻数据并转换为标准格式
+                return self._parse_news_data(news_data, search_term)
+            except Exception as e:
+                print(f"Google新闻获取失败: {e}")
+                # 回退到模拟数据
+                return [{
+                    'title': f'{search_term}相关财经新闻',
+                    'content': '暂无新闻内容，数据源连接失败',
+                    'source': '数据源不可用',
+                    'publish_time': datetime.now().isoformat(),
+                    'url': '#'
+                }]
+                
+        except Exception as e:
+            print(f"新闻获取异常: {e}")
+            return []
     
     def _get_media_coverage(self, ticker: str, days: int) -> List[Dict]:
-        """获取媒体报道 (示例实现)"""
-        # 可以集成Google News API或其他新闻聚合服务
-        return []
+        """获取媒体报道 - 集成统一新闻工具"""
+        try:
+            # 使用统一新闻工具获取股票相关媒体报道
+            from tradingagents.agents.utils.agent_utils import Toolkit
+            from datetime import datetime
+            
+            curr_date_str = datetime.now().strftime('%Y-%m-%d')
+            toolkit = Toolkit()
+            
+            # 使用统一新闻工具获取股票新闻
+            try:
+                news_data = toolkit.get_stock_news_unified(ticker, curr_date_str)
+                return self._parse_news_data(news_data, ticker)
+            except Exception as e:
+                print(f"统一新闻工具获取失败: {e}")
+                return []
+                
+        except Exception as e:
+            print(f"媒体报道获取异常: {e}")
+            return []
+    
+    def _parse_news_data(self, news_data: str, search_term: str) -> List[Dict]:
+        """解析新闻数据并转换为标准格式"""
+        try:
+            # 简单解析新闻文本数据
+            # 这里可以根据实际返回的数据格式进行调整
+            if not news_data or news_data.strip() == "":
+                return []
+            
+            # 将新闻数据分割成段落，每个段落作为一条新闻
+            news_lines = [line.strip() for line in news_data.split('\n') if line.strip()]
+            parsed_news = []
+            
+            for i, line in enumerate(news_lines[:5]):  # 限制最多5条新闻
+                if len(line) > 10:  # 过滤太短的行
+                    parsed_news.append({
+                        'title': line[:100] + '...' if len(line) > 100 else line,
+                        'content': line,
+                        'source': '新闻聚合',
+                        'publish_time': datetime.now().isoformat(),
+                        'url': f'#news_{i}'
+                    })
+            
+            return parsed_news if parsed_news else [{
+                'title': f'{search_term}相关新闻',
+                'content': news_data[:200] + '...' if len(news_data) > 200 else news_data,
+                'source': '新闻聚合',
+                'publish_time': datetime.now().isoformat(),
+                'url': '#'
+            }]
+            
+        except Exception as e:
+            print(f"新闻数据解析失败: {e}")
+            return []
     
     def _analyze_text_sentiment(self, text: str) -> float:
         """简单的中文文本情绪分析"""
