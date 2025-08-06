@@ -1068,6 +1068,29 @@ class Toolkit:
             logger.error(f"❌ [统一新闻工具] {error_msg}")
             return error_msg
 
+
+    @staticmethod
+    @tool
+    def get_enhanced_chinese_sentiment(
+        ticker: Annotated[str, "股票代码，如000526"],
+        curr_date: Annotated[str, "当前日期，格式yyyy-mm-dd"]
+    ) -> str:
+        """
+        获取增强的中国股票情绪分析，专门优化A股分析
+        Args:
+            ticker: 股票代码
+            curr_date: 当前日期
+        Returns:
+            str: 增强的情绪分析报告
+        """
+        try:
+            from tradingagents.dataflows.enhanced_sentiment import get_enhanced_chinese_sentiment
+            return get_enhanced_chinese_sentiment(ticker, curr_date)
+        except Exception as e:
+            # 回退到基础中文情绪分析
+            from tradingagents.dataflows.chinese_finance_utils import get_chinese_social_sentiment
+            return get_chinese_social_sentiment(ticker, curr_date)
+
     @staticmethod
     @tool
     @log_tool_call(tool_name="get_stock_sentiment_unified", log_args=True)

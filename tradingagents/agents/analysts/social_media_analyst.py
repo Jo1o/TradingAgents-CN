@@ -16,11 +16,17 @@ def create_social_media_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         if toolkit.config["online_tools"]:
-            tools = [toolkit.get_stock_news_openai]
+            # 在线模式：优先使用统一新闻工具，回退到OpenAI
+            tools = [
+                toolkit.get_stock_news_unified,
+                toolkit.get_stock_news_openai,
+                toolkit.get_chinese_social_sentiment
+            ]
         else:
-            # 优先使用中国社交媒体数据，如果不可用则回退到Reddit
+            # 离线模式：优先使用中国社交媒体数据
             tools = [
                 toolkit.get_chinese_social_sentiment,
+                toolkit.get_stock_news_unified,
                 toolkit.get_reddit_stock_info,
             ]
 
