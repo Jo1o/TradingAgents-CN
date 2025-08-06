@@ -28,6 +28,14 @@ except ImportError:
     CACHE_AVAILABLE = False
     logger.warning("⚠️ 缓存管理器不可用")
 
+# 导入频率限制器
+try:
+    from .rate_limiter import wait_for_tushare_api, get_api_statistics
+    RATE_LIMITER_AVAILABLE = True
+except ImportError:
+    RATE_LIMITER_AVAILABLE = False
+    logger.warning("⚠️ 频率限制器不可用")
+
 # 导入Tushare
 try:
     import tushare as ts
@@ -194,6 +202,10 @@ class TushareProvider:
 
             logger.info(f"🔄 从Tushare获取{ts_code}数据 ({start_date} 到 {end_date})...")
             logger.info(f"🔍 [股票代码追踪] 调用 Tushare API daily，传入参数: ts_code='{ts_code}', start_date='{start_date}', end_date='{end_date}'")
+
+            # 全局频率限制控制
+            if RATE_LIMITER_AVAILABLE:
+                wait_for_tushare_api(f"tushare_daily_{ts_code}")
 
             # 记录API调用前的状态
             api_start_time = time.time()

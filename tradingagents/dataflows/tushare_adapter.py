@@ -31,6 +31,14 @@ except ImportError:
     CACHE_AVAILABLE = False
     logger.warning("⚠️ 缓存管理器不可用")
 
+# 导入频率限制器
+try:
+    from .rate_limiter import wait_for_tushare_api, get_api_statistics
+    RATE_LIMITER_AVAILABLE = True
+except ImportError:
+    RATE_LIMITER_AVAILABLE = False
+    logger.warning("⚠️ 频率限制器不可用")
+
 
 class TushareDataAdapter:
     """Tushare数据适配器"""
@@ -87,6 +95,10 @@ class TushareDataAdapter:
             return pd.DataFrame()
 
         try:
+            # 全局频率限制控制
+            if RATE_LIMITER_AVAILABLE:
+                wait_for_tushare_api(f"tushare_adapter_{symbol}_{data_type}")
+            
             logger.debug(f"🔄 获取{symbol}数据 (类型: {data_type})...")
 
             # 添加详细的股票代码追踪日志

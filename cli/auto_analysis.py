@@ -36,6 +36,13 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.utils.logging_manager import get_logger
 from tradingagents.default_config import DEFAULT_CONFIG
 
+# 导入频率限制器统计
+try:
+    from tradingagents.dataflows.rate_limiter import get_api_statistics, reset_api_statistics
+    RATE_LIMITER_AVAILABLE = True
+except ImportError:
+    RATE_LIMITER_AVAILABLE = False
+
 # 加载环境变量
 load_dotenv()
 
@@ -174,6 +181,14 @@ class AutoAnalyzer:
         self.max_workers = max_workers
         self.db_manager = MySQLManager()
         self.trading_graph = None
+        
+        # 重置API统计信息
+        if RATE_LIMITER_AVAILABLE:
+            reset_api_statistics()
+            logger.info(f"📊 已重置API频率限制器统计信息")
+        
+        logger.info(f"📊 自动分析器初始化完成 (并发数: {max_workers})")
+        logger.info(f"📊 API频率限制: {'已启用' if RATE_LIMITER_AVAILABLE else '未启用'}")
         
     def initialize(self) -> bool:
         """初始化分析器"""
@@ -363,11 +378,29 @@ class AutoAnalyzer:
             successful_count = sum(1 for r in results if r['status'] == 'success')
             failed_count = len(results) - successful_count
             
+            # 获取API统计信息
+            api_stats = None
+            if RATE_LIMITER_AVAILABLE:
+                try:
+                    api_stats = get_api_statistics()
+                    logger.info(f"📊 API调用统计: {api_stats}")
+                except Exception as e:
+                    logger.warning(f"⚠️ 获取API统计信息失败: {e}")
+            
             # 显示最终结果
             console.print(f"\n[bold green]🎉 异步分析完成![/bold green]")
             console.print(f"✅ 成功: {successful_count}")
             console.print(f"❌ 失败: {failed_count}")
             console.print(f"📊 总计: {len(stock_codes)}")
+            
+            # 显示API统计信息
+            if api_stats:
+                console.print(f"\n[bold cyan]📊 API调用统计:[/bold cyan]")
+                console.print(f"  总调用次数: {api_stats['total_calls']}")
+                console.print(f"  当前分钟调用: {api_stats['current_calls_per_minute']}/{api_stats['max_calls_per_minute']}")
+                console.print(f"  剩余调用额度: {api_stats['remaining_calls']}")
+                console.print(f"  被阻止次数: {api_stats['blocked_calls']}")
+                console.print(f"  平均调用频率: {api_stats['calls_per_second']:.2f} 次/秒")
             
             # 显示失败的股票详情
             failed_stocks = [r for r in results if r['status'] != 'success']

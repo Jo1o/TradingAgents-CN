@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from .cache_manager import get_cache
 from .config import get_config
+from .rate_limiter import wait_for_tushare_api, get_api_statistics
 
 # 导入日志模块
 from tradingagents.utils.logging_manager import get_logger
@@ -21,23 +22,22 @@ class OptimizedChinaDataProvider:
     """优化的A股数据提供器 - 集成缓存和Tushare数据接口"""
     
     def __init__(self):
+        """初始化优化的A股数据提供器"""
         self.cache = get_cache()
         self.config = get_config()
-        self.last_api_call = 0
-        self.min_api_interval = 0.5  # Tushare数据接口调用间隔较短
         
         logger.info(f"📊 优化A股数据提供器初始化完成")
+        logger.info(f"📊 已启用全局API频率限制器")
     
     def _wait_for_rate_limit(self):
-        """等待API限制"""
-        current_time = time.time()
-        time_since_last_call = current_time - self.last_api_call
+        """等待API限制 - 使用全局频率限制器"""
+        wait_for_tushare_api("optimized_china_data")
         
-        if time_since_last_call < self.min_api_interval:
-            wait_time = self.min_api_interval - time_since_last_call
-            time.sleep(wait_time)
-        
-        self.last_api_call = time.time()
+        # 每100次调用输出一次统计信息
+        stats = get_api_statistics()
+        if stats['total_calls'] % 100 == 0:
+            logger.info(f"📊 API调用统计: {stats['current_calls_per_minute']}/{stats['max_calls_per_minute']} (剩余: {stats['remaining_calls']})")
+            logger.info(f"📊 总调用次数: {stats['total_calls']}, 被阻止次数: {stats['blocked_calls']}")
     
     def get_stock_data(self, symbol: str, start_date: str, end_date: str, 
                       force_refresh: bool = False) -> str:
@@ -201,17 +201,88 @@ class OptimizedChinaDataProvider:
         volume = "N/A"
         change_pct = "N/A"
 
-        if "股票名称:" in stock_data:
+        # 解析股票数据，优先从实时行情部分提取信息
+        try:
             lines = stock_data.split('\n')
+            
+            # 首先尝试从实时行情部分提取信息
             for line in lines:
-                if "股票名称:" in line:
-                    company_name = line.split(':')[1].strip()
-                elif "当前价格:" in line:
-                    current_price = line.split(':')[1].strip()
-                elif "涨跌幅:" in line:
-                    change_pct = line.split(':')[1].strip()
-                elif "成交量:" in line:
-                    volume = line.split(':')[1].strip()
+                if '当前价格:' in line:
+                    # 提取当前价格
+                    price_match = line.split('当前价格:')[1].strip()
+                    if price_match.startswith('¥'):
+                        current_price = price_match.split()[0]  # 取第一个部分，去掉后面可能的其他信息
+                elif '涨跌幅:' in line:
+                    # 提取涨跌幅
+                    change_match = line.split('涨跌幅:')[1].strip()
+                    change_pct = change_match.split()[0]  # 取第一个部分
+                elif '成交量:' in line:
+                    # 提取成交量
+                    volume_match = line.split('成交量:')[1].strip()
+                    volume = volume_match.split()[0]  # 取第一个部分
+            
+            # 如果实时行情数据不完整，再尝试从历史数据中提取
+            if current_price == "N/A" or change_pct == "N/A":
+                # 查找最新数据行（通常是最后一行有效数据）
+                latest_data_line = None
+                for line in reversed(lines):
+                    if line.strip() and '202' in line and symbol in line:  # 包含年份和股票代码的行
+                        latest_data_line = line.strip()
+                        break
+                
+                if latest_data_line:
+                    # 解析数据行，格式通常是：日期 股票代码 开盘 收盘 最高 最低 成交量 成交额 振幅 涨跌幅 涨跌额 换手率
+                    parts = latest_data_line.split()
+                    if len(parts) >= 11:
+                        try:
+                            # 收盘价（如果当前价格还是N/A）
+                            if current_price == "N/A":
+                                close_price = float(parts[3])
+                                current_price = f"¥{close_price:.2f}"
+                            
+                            # 涨跌幅（如果还是N/A）
+                            if change_pct == "N/A":
+                                change_pct_value = float(parts[9])
+                                # 涨跌幅应该在合理范围内（-20%到+20%）
+                                if -20 <= change_pct_value <= 20:
+                                    change_pct = f"{change_pct_value:.2f}%"
+                                else:
+                                    # 如果涨跌幅异常，尝试计算
+                                    try:
+                                        open_price = float(parts[2])
+                                        if open_price > 0:
+                                            calculated_change = ((close_price - open_price) / open_price) * 100
+                                            change_pct = f"{calculated_change:.2f}%"
+                                        else:
+                                            change_pct = "N/A"
+                                    except:
+                                        change_pct = "N/A"
+                            
+                            # 成交量（如果还是N/A）
+                            if volume == "N/A":
+                                volume = parts[6]
+                                # 格式化成交量（如果是数字）
+                                try:
+                                    vol_num = float(volume)
+                                    if vol_num >= 100000000:  # 亿
+                                        volume = f"{vol_num/100000000:.2f}亿"
+                                    elif vol_num >= 10000:    # 万
+                                        volume = f"{vol_num/10000:.2f}万"
+                                    else:
+                                        volume = f"{vol_num:.0f}"
+                                except:
+                                    pass
+                                
+                        except (ValueError, IndexError) as e:
+                            logger.warning(f"⚠️ 解析股票数据字段时出错: {e}")
+                            # 保持默认值
+            
+            # 尝试从股票代码获取公司名称（简单映射）
+            company_name = self._get_company_name_by_code(symbol)
+            
+        except Exception as e:
+            logger.warning(f"⚠️ 解析股票数据时出错: {e}")
+            # 保持默认值
 
         # 根据股票代码判断行业和基本信息
         logger.debug(f"🔍 [股票代码追踪] 调用 _get_industry_info，传入参数: '{symbol}'")
@@ -466,6 +537,28 @@ class OptimizedChinaDataProvider:
                 "growth_score": 7.0,
                 "risk_level": "中等"
             }
+    
+    def _get_company_name_by_code(self, symbol: str) -> str:
+        """根据股票代码获取公司名称（简单映射）"""
+        # 常见股票代码到公司名称的映射
+        stock_names = {
+            "000001": "平安银行",
+            "000002": "万科A",
+            "000519": "中兵红箭",
+            "000581": "威孚高科",
+            "000858": "五粮液",
+            "002027": "分众传媒",
+            "002031": "巨轮智能",
+            "002097": "山河智能",
+            "002161": "远望谷",
+            "600000": "浦发银行",
+            "600036": "招商银行",
+            "600519": "贵州茅台",
+            "600887": "伊利股份",
+            "000949": "新乡化纤"
+        }
+        
+        return stock_names.get(symbol, f"股票{symbol}")
 
     def _analyze_valuation(self, financial_estimates: dict) -> str:
         """分析估值水平"""
